@@ -1,3 +1,9 @@
+target/
+*.log
+.classpath
+.project
+.settings/
+
 .metadata
 bin/
 tmp/
