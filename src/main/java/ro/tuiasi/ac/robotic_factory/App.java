@@ -2,6 +2,7 @@ package ro.tuiasi.ac.robotic_factory;
 
 /**
  * Hello world!
+ * 
  */
 public class App {
     public static void main(String[] args) {
