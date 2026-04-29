@@ -39,6 +39,10 @@ public class SimulationEngine {
 			}
 
 			Robot worker = selected;
+			
+			//Setăm task-ul și desenăm robotul cu ROȘU înainte de a porni Thread-ul
+			worker.setCurrentTaskName(task.getName());
+			worker.updateVisuals();
 
 			new Thread(() -> {
 
@@ -53,6 +57,8 @@ public class SimulationEngine {
 				System.out.println(worker.getId() + " a terminat " + task.getName());
 
 				worker.release();
+				worker.setCurrentTaskName("Inactiv");
+				worker.updateVisuals();
 
 				// R3
 				new Thread(() -> {
@@ -65,6 +71,10 @@ public class SimulationEngine {
 							e.printStackTrace();
 						}
 					}
+					
+					//R3 preia task-ul de transport
+					r3.setCurrentTaskName("Transport: " + task.getName());
+					r3.updateVisuals();
 
 					System.out.println("R3 a mutat piesa prelucrata de " + worker.getId() + " in cadrul task-ului de "
 							+ task.getName() + " in depozit");
@@ -76,6 +86,9 @@ public class SimulationEngine {
 					}
 
 					r3.release();
+					//R3 revine la verde
+					r3.setCurrentTaskName("Inactiv");
+					r3.updateVisuals();
 
 				}).start();
 
