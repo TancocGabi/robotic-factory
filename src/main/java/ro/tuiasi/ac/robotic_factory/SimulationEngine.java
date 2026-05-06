@@ -15,19 +15,17 @@ public class SimulationEngine {
 	
 	public void stop() {
         this.running = false;
-        System.out.println("!!! COMANDĂ DE OPRIRE PRIMITĂ !!!");
+        System.out.println("!!! COMANDA DE OPRIRE PRIMITA !!!");
     }
 
 	public void start() {
 	    List<Robot> allRobots = factory.getRobots();
 	    
 	    // Separăm listele pentru a gestiona pool-urile de resurse
-	    List<Robot> processingPool = allRobots.stream()
-	            .filter(r -> r.getType().equals("processing"))
+	    List<Robot> processingPool = allRobots.stream().filter(r -> r.getType().equals("processing"))
 	            .toList();
 	            
-	    List<Robot> transportPool = allRobots.stream()
-	            .filter(r -> r.getType().equals("finalizer"))
+	    List<Robot> transportPool = allRobots.stream().filter(r -> r.getType().equals("finalizer"))
 	            .toList();
 
 	    System.out.println("--- START SIMULARE: " + tasks.size() + " task-uri ---");
@@ -60,16 +58,12 @@ public class SimulationEngine {
 
 	        new Thread(() -> {
 	            try {
-	            	if (!running) { worker.release(); return; }
-	            	
-	                // ETAPA DE PROCESARE
-	                System.out.println("[PRODUCTIE] " + worker.getId() + " a inceput task-ul: " + task.getName());
+	                if (!running) { worker.release(); return; }
 	                
+	                System.out.println("[PRODUCTIE] " + worker.getId() + " proceseaza " + task.getName());
 	                Thread.sleep(task.getDuration());
-	                
-	                System.out.println("[WAITING] " + worker.getId() + " a terminat " + task.getName() + " si asteapta transportul.");
 
-	                // Pasul 2: Căutăm un robot de transport disponibil
+	                // Căutăm un RT, dar ieșim dacă simularea se oprește
 	                Robot selectedTransport = null;
 	                while (selectedTransport == null && running) {
 	                    for (Robot rt : transportPool) {
@@ -78,37 +72,38 @@ public class SimulationEngine {
 	                            break;
 	                        }
 	                    }
-	                    if (selectedTransport == null) {
-	                        Thread.sleep(100); // Așteptăm să se elibereze un RT
-	                    }
+	                    if (selectedTransport == null) Thread.sleep(100);
 	                }
 
-	                // ETAPA DE TRANSPORT
-	                final Robot transportBot = selectedTransport;
-	                System.out.println("[TRANSPORT] " + transportBot.getId() + " preia piesa de la " + worker.getId());
-	                
-	                transportBot.setCurrentTaskName("Transport de la " + worker.getId());
-	                transportBot.updateVisuals();
-	                
-	                Thread.sleep(1000); // Durata transportului către depozit
+	                if (selectedTransport != null) {
+	                    System.out.println("[TRANSPORT] " + selectedTransport.getId() + " preia piesa de la " + worker.getId());
+	                    
+	                    selectedTransport.setCurrentTaskName("De la " + worker.getId());
+	                    selectedTransport.updateVisuals();
+	                    
+	                    Thread.sleep(1000); // Timp transport
 
-	                // FINALIZARE: Eliberăm ambii roboți
+	                    selectedTransport.release();
+	                    selectedTransport.setCurrentTaskName("Inactiv");
+	                    selectedTransport.updateVisuals();
+	                    
+	                    System.out.println("[FINALIZAT] Task-ul " + task.getName() + " a fost depozitat.");
+	                } else {
+	                    // Dacă am ajuns aici pentru că s-a apăsat STOP
+	                    System.out.println("[STOP] " + worker.getId() + " a abandonat task-ul " + task.getName() + " din cauza opririi.");
+	                }
+
+	                // Eliberăm mereu worker-ul, indiferent dacă transportul s-a făcut sau nu
 	                worker.release();
 	                worker.setCurrentTaskName("Inactiv");
 	                worker.updateVisuals();
 
-	                transportBot.release();
-	                transportBot.setCurrentTaskName("Inactiv");
-	                transportBot.updateVisuals();
-	                
-	                System.out.println("[FINALIZAT] Task-ul " + task.getName() + " a fost depozitat de " + transportBot.getId());
-
 	            } catch (InterruptedException e) {
-	            	worker.release();
-	                System.err.println("Eroare în thread-ul robotului " + worker.getId());
-	                e.printStackTrace();
+	                worker.release();
+	                System.err.println("Thread intrerupt pentru " + worker.getId());
 	            }
 	        }).start();
+	        
 	    }
 	}
 }

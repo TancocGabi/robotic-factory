@@ -164,7 +164,7 @@ public class FactoryGUI extends Application {
 	            currentEngine.stop();
 	            btnStop.setDisable(true);
 	            btnReset.setDisable(false); // Activăm Reset doar după Stop
-	            System.out.println("Simularea a fost oprită de utilizator.");
+	            System.out.println("Simularea a fost oprita de utilizator.");
 	        }
 	    });
 
@@ -174,7 +174,8 @@ public class FactoryGUI extends Application {
 
 	    HBox controls = new HBox(15, btnStop, btnReset);
 	    controls.setStyle("-fx-padding: 10; -fx-alignment: center;");
-	    // 2. Containerul pentru roboți (cu ScrollPane)
+	    
+	    // Containerul pentru roboți (cu ScrollPane)
 	    robotContainer = new FlowPane(20, 20);
 	    robotContainer.setStyle("-fx-padding: 20; -fx-alignment: center;");
 	    
@@ -186,7 +187,7 @@ public class FactoryGUI extends Application {
 	    scrollPane.setFitToWidth(true); // Se extinde pe lățime
 	    scrollPane.setPannable(true);   // Permite scroll cu mouse drag
 
-	    // 3. Layout Final
+	    // Layout Final
 	    VBox mainLayout = new VBox(controls, scrollPane);
 	    
 	    Scene scene = new Scene(mainLayout, 900, 500);
