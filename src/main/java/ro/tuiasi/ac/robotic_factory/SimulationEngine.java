@@ -4,89 +4,107 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class SimulationEngine {
-    private Factory factory;
-    private List<Task> tasks;
-    private KafkaProducerService kafkaService;
-    private final List<Thread> allThreads = new ArrayList<>();
+	private Factory factory;
+	private List<Task> tasks;
+	// Flag pentru oprire
+    private volatile boolean running = true;
 
-    public SimulationEngine(Factory factory, List<Task> tasks) {
-        this.factory = factory;
-        this.tasks = tasks;
-        this.kafkaService = KafkaProducerService.getInstance();
+	public SimulationEngine(Factory factory, List<Task> tasks) {
+		this.factory = factory;
+		this.tasks = tasks;
+	}
+	
+	public void stop() {
+        this.running = false;
+        System.out.println("!!! COMANDA DE OPRIRE PRIMITA !!!");
     }
 
-    public void start() {
-        List<Robot> robots = factory.getRobots();
-        Robot r1 = robots.get(0);
-        Robot r2 = robots.get(1);
-        Robot r3 = robots.get(2);
+	public void start() {
+	    List<Robot> allRobots = factory.getRobots();
+	    
+	    // Separăm listele pentru a gestiona pool-urile de resurse
+	    List<Robot> processingPool = allRobots.stream().filter(r -> r.getType().equals("processing"))
+	            .toList();
+	            
+	    List<Robot> transportPool = allRobots.stream().filter(r -> r.getType().equals("finalizer"))
+	            .toList();
 
-        for (Task task : tasks) {
-            Robot selected = null;
+	    System.out.println("--- START SIMULARE: " + tasks.size() + " task-uri ---");
 
-            while (selected == null) {
-                if (r1.tryAcquire()) {
-                    selected = r1;
-                } else if (r2.tryAcquire()) {
-                    selected = r2;
-                } else {
-                    try { Thread.sleep(100); }
-                    catch (InterruptedException e) { e.printStackTrace(); }
-                }
-            }
+	    for (Task task : tasks) {
+	    	
+	    	// Dacă s-a apăsat STOP, nu mai luăm task-uri noi
+            if (!running) break;
+            
+	        Robot selectedWorker = null;
 
-            Robot worker = selected;
+	        // Pasul 1: Așteptăm un robot de procesare liber
+	        while (selectedWorker == null && running) {
+	            for (Robot r : processingPool) {
+	                if (r.tryAcquire()) {
+	                    selectedWorker = r;
+	                    break;
+	                }
+	            }
+	            if (selectedWorker == null) {
+	                try { Thread.sleep(100); } catch (Exception e) {return;}
+	            }
+	        }
+	        
+	        if (selectedWorker == null) continue;
+	        
+	        final Robot worker = selectedWorker;
+	        worker.setCurrentTaskName(task.getName());
+	        worker.updateVisuals();
 
-            Thread workerThread = new Thread(() -> {
-                kafkaService.sendEvent(new RobotEvent(
-                    worker.getId(), "TASK_STARTED", task.getName(), worker.getType()
-                ));
+	        new Thread(() -> {
+	            try {
+	                if (!running) { worker.release(); return; }
+	                
+	                System.out.println("[PRODUCTIE] " + worker.getId() + " proceseaza " + task.getName());
+	                Thread.sleep(task.getDuration());
 
-                try { Thread.sleep(task.getDuration()); }
-                catch (InterruptedException e) { e.printStackTrace(); }
+	                // Căutăm un RT, dar ieșim dacă simularea se oprește
+	                Robot selectedTransport = null;
+	                while (selectedTransport == null && running) {
+	                    for (Robot rt : transportPool) {
+	                        if (rt.tryAcquire()) {
+	                            selectedTransport = rt;
+	                            break;
+	                        }
+	                    }
+	                    if (selectedTransport == null) Thread.sleep(100);
+	                }
 
-                kafkaService.sendEvent(new RobotEvent(
-                    worker.getId(), "TASK_COMPLETED", task.getName(),
-                    "Durata: " + task.getDuration() + "ms"
-                ));
+	                if (selectedTransport != null) {
+	                    System.out.println("[TRANSPORT] " + selectedTransport.getId() + " preia piesa de la " + worker.getId());
+	                    
+	                    selectedTransport.setCurrentTaskName("De la " + worker.getId());
+	                    selectedTransport.updateVisuals();
+	                    
+	                    Thread.sleep(1000); // Timp transport
 
-                worker.release();
+	                    selectedTransport.release();
+	                    selectedTransport.setCurrentTaskName("Inactiv");
+	                    selectedTransport.updateVisuals();
+	                    
+	                    System.out.println("[FINALIZAT] Task-ul " + task.getName() + " a fost depozitat.");
+	                } else {
+	                    // Dacă am ajuns aici pentru că s-a apăsat STOP
+	                    System.out.println("[STOP] " + worker.getId() + " a abandonat task-ul " + task.getName() + " din cauza opririi.");
+	                }
 
-                Thread moverThread = new Thread(() -> {
-                    while (!r3.tryAcquire()) {
-                        try { Thread.sleep(100); }
-                        catch (InterruptedException e) { e.printStackTrace(); }
-                    }
+	                // Eliberăm mereu worker-ul, indiferent dacă transportul s-a făcut sau nu
+	                worker.release();
+	                worker.setCurrentTaskName("Inactiv");
+	                worker.updateVisuals();
 
-                    kafkaService.sendEvent(new RobotEvent(
-                        "R3", "PRODUCT_MOVED", task.getName(),
-                        "De la: " + worker.getId() + " in depozit"
-                    ));
-
-                    try { Thread.sleep(500); }
-                    catch (InterruptedException e) { e.printStackTrace(); }
-
-                    r3.release();
-                });
-
-                // adaugam SI pornim moverThread o singura data
-                synchronized (allThreads) { allThreads.add(moverThread); }
-                moverThread.start();
-            });
-
-            // adaugam SI pornim workerThread o singura data
-            synchronized (allThreads) { allThreads.add(workerThread); }
-            workerThread.start();
-        }
-    }
-
-    public void awaitCompletion() throws InterruptedException {
-        boolean done = false;
-        while (!done) {
-            Thread.sleep(200);
-            synchronized (allThreads) {
-                done = allThreads.stream().noneMatch(Thread::isAlive);
-            }
-        }
-    }
+	            } catch (InterruptedException e) {
+	                worker.release();
+	                System.err.println("Thread intrerupt pentru " + worker.getId());
+	            }
+	        }).start();
+	        
+	    }
+	}
 }
