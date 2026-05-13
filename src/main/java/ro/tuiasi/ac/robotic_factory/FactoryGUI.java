@@ -151,7 +151,7 @@ public class FactoryGUI extends Application {
         return container;
     }
 
-    private List<Task> generaTaskuriAleatorii(int count, List<String> tipuriPermise) {
+    public List<Task> generaTaskuriAleatorii(int count, List<String> tipuriPermise) {
         List<Task> generate = new ArrayList<>();
         Random random = new Random();
         for (int i = 0; i < count; i++) {
