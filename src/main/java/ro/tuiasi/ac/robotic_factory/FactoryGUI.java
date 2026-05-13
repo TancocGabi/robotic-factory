@@ -196,9 +196,9 @@ public class FactoryGUI extends Application {
         HBox controls = new HBox(15, btnStop, btnReset);
         controls.setStyle("-fx-padding: 10; -fx-alignment: center;");
 
+        // Roboti
         robotContainer = new FlowPane(20, 20);
         robotContainer.setStyle("-fx-padding: 20; -fx-alignment: center;");
-
         for (Robot r : factory.getRobots()) {
             robotContainer.getChildren().add(createRobotUI(r));
         }
@@ -207,15 +207,26 @@ public class FactoryGUI extends Application {
         scrollRoboti.setFitToWidth(true);
         scrollRoboti.setPannable(true);
 
+        // Log Kafka
         logArea = new TextArea();
         logArea.setEditable(false);
-        logArea.setPrefHeight(200);
         logArea.setStyle("-fx-font-family: monospace; -fx-font-size: 12;");
 
         Label lblLog = new Label("Evenimente Kafka:");
         lblLog.setStyle("-fx-font-weight: bold; -fx-padding: 5 0 0 10;");
 
-        VBox mainLayout = new VBox(controls, scrollRoboti, lblLog, logArea);
+        VBox logBox = new VBox(lblLog, logArea);
+        VBox.setVgrow(logArea, Priority.ALWAYS); // <-- log-ul creste cu fereastra
+
+        // SplitPane vertical - permite tragerea in sus/jos
+        SplitPane splitPane = new SplitPane();
+        splitPane.setOrientation(javafx.geometry.Orientation.VERTICAL);
+        splitPane.getItems().addAll(scrollRoboti, logBox);
+        splitPane.setDividerPositions(0.65); // 65% roboti, 35% log
+
+        // SplitPane se extinde cu fereastra
+        VBox mainLayout = new VBox(controls, splitPane);
+        VBox.setVgrow(splitPane, Priority.ALWAYS);
 
         Scene scene = new Scene(mainLayout, 900, 600);
         primaryStage.setTitle("Monitorizare Fabrică");
