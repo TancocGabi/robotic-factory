@@ -249,7 +249,7 @@ public class FactoryGUI extends Application {
      * @param tipuriPermise lista tipurilor de task-uri din care se poate alege
      * @return lista de {@link Task} generată
      */
-    private List<Task> generaTaskuriAleatorii(int count, List<String> tipuriPermise) {
+    public List<Task> generaTaskuriAleatorii(int count, List<String> tipuriPermise) {
         List<Task> generate = new ArrayList<>();
         Random random = new Random();
         for (int i = 0; i < count; i++) {
