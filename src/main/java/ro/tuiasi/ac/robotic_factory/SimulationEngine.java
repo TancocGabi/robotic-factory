@@ -34,7 +34,6 @@ import java.util.List;
  * }</pre>
  *
  * @author Echipa Robotic Factory
- * @version 1.0
  * @see Factory
  * @see Robot
  * @see Task

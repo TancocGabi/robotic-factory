@@ -33,7 +33,6 @@ import java.util.Random;
  * </ol>
  *
  * @author Echipa Robotic Factory
- * @version 1.0
  * @see Factory
  * @see SimulationEngine
  * @see KafkaConsumerService
