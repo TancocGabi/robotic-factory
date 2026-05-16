@@ -14,21 +14,69 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
+/**
+ * Clasa principală a interfeței grafice pentru simularea fabricii de roboți.
+ *
+ * <p>Extinde {@link javafx.application.Application} și gestionează:
+ * <ul>
+ *   <li>fereastra de configurare a simulării;</li>
+ *   <li>interfața principală de monitorizare a roboților;</li>
+ *   <li>afișarea evenimentelor primite prin Kafka.</li>
+ * </ul>
+ *
+ * <p>Fluxul de execuție:
+ * <ol>
+ *   <li>Se pornește consumatorul Kafka ({@link KafkaConsumerService}).</li>
+ *   <li>Se afișează dialogul de configurare ({@link #showSetupDialog(Stage)}).</li>
+ *   <li>După confirmare, se inițializează UI-ul principal ({@link #initMainUI(Stage, int, int, List)}).</li>
+ *   <li>Se pornește simularea prin {@link SimulationEngine}.</li>
+ * </ol>
+ *
+ * @author Echipa Robotic Factory
+ * @see Factory
+ * @see SimulationEngine
+ * @see KafkaConsumerService
+ */
 public class FactoryGUI extends Application {
 
+    /** Instanța fabricii care gestionează roboții și task-urile. */
     private Factory factory;
+
+    /** Containerul vizual în care sunt afișați roboții. */
     private FlowPane robotContainer;
+
+    /** Motorul de simulare curent, folosit și pentru oprirea simulării. */
     private SimulationEngine currentEngine;
+
+    /** Buton pentru oprirea simulării în curs. */
     private Button btnReset;
+
+    /** Buton pentru resetarea fabricii și reluarea configurării. */
     private Button btnStop;
+
+    /** Zona de text în care sunt afișate evenimentele primite din Kafka. */
     private TextArea logArea;
+
+    /** Serviciul de consum Kafka pentru monitorizarea evenimentelor din fabrică. */
     private KafkaConsumerService kafkaMonitor;
 
+    /**
+     * Lista opțiunilor de tipuri de task-uri disponibile pentru configurare.
+     * Fiecare element reprezintă un tip de operație industrială.
+     */
     private final String[] OPTIUNI_TASKURI = {
         "Sudura", "Ambalare", "Etichetare", "Asamblare",
         "Vopsire", "Testare", "Lipire", "Finisare"
     };
 
+    /**
+     * Punctul de intrare al aplicației JavaFX.
+     *
+     * <p>Inițializează serviciul Kafka, așteaptă până când acesta este pregătit,
+     * apoi deschide fereastra de configurare a simulării.
+     *
+     * @param primaryStage fereastra principală a aplicației, furnizată de JavaFX
+     */
     @Override
     public void start(Stage primaryStage) {
         kafkaMonitor = new KafkaConsumerService(event -> {
@@ -61,12 +109,35 @@ public class FactoryGUI extends Application {
         showSetupDialog(primaryStage);
     }
 
+    /**
+     * Adaugă un mesaj în zona de log a interfeței grafice.
+     *
+     * <p>Dacă {@link #logArea} nu a fost încă inițializat, metoda nu face nimic.
+     *
+     * @param message mesajul de afișat; se adaugă pe o linie nouă
+     */
     private void log(String message) {
         if (logArea != null) {
             logArea.appendText(message + "\n");
         }
     }
 
+    /**
+     * Afișează fereastra de configurare a simulării.
+     *
+     * <p>Permite utilizatorului să definească:
+     * <ul>
+     *   <li>numărul de roboți de procesare;</li>
+     *   <li>numărul de roboți de transport;</li>
+     *   <li>numărul total de task-uri de generat;</li>
+     *   <li>tipurile de task-uri permise (selectate prin {@code CheckBox}).</li>
+     * </ul>
+     *
+     * <p>La apăsarea butonului <em>Pornește Fabrica</em>, se validează inputul,
+     * se generează lista de task-uri și se trece la {@link #initMainUI(Stage, int, int, List)}.
+     *
+     * @param primaryStage fereastra principală, transmisă mai departe pentru inițializarea UI-ului
+     */
     private void showSetupDialog(Stage primaryStage) {
         Stage configStage = new Stage();
         configStage.setTitle("Configurare Simulare");
@@ -133,6 +204,22 @@ public class FactoryGUI extends Application {
         configStage.show();
     }
 
+    /**
+     * Construiește reprezentarea vizuală a unui robot în interfață.
+     *
+     * <p>Fiecare robot este afișat ca un {@code VBox} ce conține:
+     * <ul>
+     *   <li>titlul cu ID-ul și tipul robotului;</li>
+     *   <li>un dreptunghi colorat ({@link Rectangle}) care reflectă starea curentă;</li>
+     *   <li>un text de status actualizat în timp real.</li>
+     * </ul>
+     *
+     * <p>Referințele la {@link Rectangle} și la textul de status sunt stocate
+     * direct pe obiectul {@link Robot} pentru actualizări ulterioare din simulare.
+     *
+     * @param r robotul pentru care se creează reprezentarea UI
+     * @return un {@code VBox} gata de adăugat în interfață
+     */
     private VBox createRobotUI(Robot r) {
         VBox container = new VBox(10);
         container.setStyle("-fx-alignment: center; -fx-border-color: #ddd; -fx-padding: 10;");
@@ -151,7 +238,17 @@ public class FactoryGUI extends Application {
         return container;
     }
 
-    private List<Task> generaTaskuriAleatorii(int count, List<String> tipuriPermise) {
+    /**
+     * Generează o listă de task-uri cu tipuri și durate aleatorii.
+     *
+     * <p>Durata fiecărui task este aleasă aleatoriu în intervalul {@code [1000, 4000)} ms.
+     * Tipul este ales aleatoriu din lista {@code tipuriPermise}.
+     *
+     * @param count        numărul de task-uri de generat
+     * @param tipuriPermise lista tipurilor de task-uri din care se poate alege
+     * @return lista de {@link Task} generată
+     */
+    public List<Task> generaTaskuriAleatorii(int count, List<String> tipuriPermise) {
         List<Task> generate = new ArrayList<>();
         Random random = new Random();
         for (int i = 0; i < count; i++) {
@@ -162,6 +259,23 @@ public class FactoryGUI extends Application {
         return generate;
     }
 
+    /**
+     * Inițializează și afișează interfața principală de monitorizare a fabricii.
+     *
+     * <p>Creează instanța {@link Factory}, adaugă roboții de procesare și de transport,
+     * construiește layout-ul principal (zona roboților + log Kafka) și pornește simularea.
+     *
+     * <p>Layout-ul este organizat astfel:
+     * <ul>
+     *   <li>un {@link HBox} cu butoanele de control (<em>Stop</em> și <em>Reset</em>);</li>
+     *   <li>un {@link SplitPane} vertical cu zona roboților (65%) și zona de log (35%).</li>
+     * </ul>
+     *
+     * @param primaryStage fereastra principală pe care se setează noua scenă
+     * @param nProc        numărul de roboți de procesare de creat
+     * @param nTransp      numărul de roboți de transport (finalizatori) de creat
+     * @param taskuri      lista de task-uri ce urmează să fie executate în simulare
+     */
     private void initMainUI(Stage primaryStage, int nProc, int nTransp, List<Task> taskuri) {
         factory = new Factory();
 
@@ -196,7 +310,6 @@ public class FactoryGUI extends Application {
         HBox controls = new HBox(15, btnStop, btnReset);
         controls.setStyle("-fx-padding: 10; -fx-alignment: center;");
 
-        // Roboti
         robotContainer = new FlowPane(20, 20);
         robotContainer.setStyle("-fx-padding: 20; -fx-alignment: center;");
         for (Robot r : factory.getRobots()) {
@@ -207,7 +320,6 @@ public class FactoryGUI extends Application {
         scrollRoboti.setFitToWidth(true);
         scrollRoboti.setPannable(true);
 
-        // Log Kafka
         logArea = new TextArea();
         logArea.setEditable(false);
         logArea.setStyle("-fx-font-family: monospace; -fx-font-size: 12;");
@@ -216,15 +328,13 @@ public class FactoryGUI extends Application {
         lblLog.setStyle("-fx-font-weight: bold; -fx-padding: 5 0 0 10;");
 
         VBox logBox = new VBox(lblLog, logArea);
-        VBox.setVgrow(logArea, Priority.ALWAYS); // <-- log-ul creste cu fereastra
+        VBox.setVgrow(logArea, Priority.ALWAYS);
 
-        // SplitPane vertical - permite tragerea in sus/jos
         SplitPane splitPane = new SplitPane();
         splitPane.setOrientation(javafx.geometry.Orientation.VERTICAL);
         splitPane.getItems().addAll(scrollRoboti, logBox);
-        splitPane.setDividerPositions(0.65); // 65% roboti, 35% log
+        splitPane.setDividerPositions(0.65);
 
-        // SplitPane se extinde cu fereastra
         VBox mainLayout = new VBox(controls, splitPane);
         VBox.setVgrow(splitPane, Priority.ALWAYS);
 
@@ -236,6 +346,15 @@ public class FactoryGUI extends Application {
         startSimulation(taskuri);
     }
 
+    /**
+     * Pornește motorul de simulare pe un fir de execuție separat (daemon thread).
+     *
+     * <p>Instanța {@link SimulationEngine} creată este stocată în {@link #currentEngine}
+     * pentru a putea fi oprită ulterior prin butonul <em>Stop</em>.
+     * Firul este marcat ca daemon, astfel încât nu va bloca închiderea aplicației.
+     *
+     * @param taskuri lista de task-uri ce vor fi procesate de simulare
+     */
     private void startSimulation(List<Task> taskuri) {
         currentEngine = new SimulationEngine(factory, taskuri);
         Thread simThread = new Thread(() -> currentEngine.start());
@@ -243,6 +362,11 @@ public class FactoryGUI extends Application {
         simThread.start();
     }
 
+    /**
+     * Metoda principală de lansare a aplicației JavaFX.
+     *
+     * @param args argumentele din linia de comandă (neutilizate)
+     */
     public static void main(String[] args) {
         launch(args);
     }
