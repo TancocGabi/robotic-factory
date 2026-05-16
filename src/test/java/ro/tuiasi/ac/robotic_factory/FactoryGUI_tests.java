@@ -7,7 +7,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-class FactoryGUI_tests {
+public class FactoryGUI_tests {
 
     @Test
     void testGenerateTasksCount() {
