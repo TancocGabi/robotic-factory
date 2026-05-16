@@ -1,17 +1,14 @@
 # 🏭 Robotic Factory Simulator
  
 O aplicație Java de simulare a unei fabrici robotizate, cu interfață grafică JavaFX și monitorizare în timp real prin Apache Kafka.
- 
----
+
  
 ## 📋 Descriere
  
 **Robotic Factory Simulator** simulează funcționarea unei fabrici automatizate în care roboți de două tipuri — **procesare** și **transport** — colaborează pentru a executa task-uri industriale (sudură, asamblare, vopsire etc.). Activitatea roboților este monitorizată în timp real prin evenimente publicate și consumate via Apache Kafka.
  
 
- 
----
- 
+
 ## 📦 Clase principale
  
 ### `FactoryGUI`
@@ -46,23 +43,19 @@ Singleton thread-safe care publică evenimente pe topicul `factory-events`. Trim
 ### `KafkaConsumerService`
 Serviciu asincron care ascultă topicul Kafka pe un thread daemon și notifică interfața grafică prin callback (`EventListener`).
  
----
  
 ## 🔄 Fluxul unui task
  
-```
-1. SimulationEngine găsește un Robot [processing] liber → tryAcquire()
-2. Publică eveniment TASK_STARTED pe Kafka
-3. Robot execută task (Thread.sleep(duration))
-4. Publică eveniment TASK_COMPLETED
-5. SimulationEngine găsește un Robot [finalizer] liber → tryAcquire()
-6. Publică eveniment PRODUCT_MOVED
-7. Robot transport simulează deplasarea (1000ms)
-8. Publică eveniment TASK_FINALIZED
-9. Ambii roboți sunt eliberați → release()
-```
- 
- 
+1. SimulationEngine găsește un Robot [processing] liber → tryAcquire()  
+2. Publică eveniment TASK_STARTED pe Kafka  
+3. Robot execută task (Thread.sleep(duration))  
+4. Publică eveniment TASK_COMPLETED  
+5. SimulationEngine găsește un Robot [finalizer] liber → tryAcquire()  
+6. Publică eveniment PRODUCT_MOVED  
+7. Robot transport simulează deplasarea (1000ms)  
+8. Publică eveniment TASK_FINALIZED  
+9. Ambii roboți sunt eliberați → release()  
+
 ## 👥 Autori
  
 **Echipa Robotic Factory**
