@@ -5,18 +5,20 @@ import java.util.List;
 /**
  * Motor de simulare pentru fabrica robotizată.
  *
- * <p>Această clasă coordonează întreaga execuție a simulării, gestionând alocarea
- * dinamică a roboților către task-uri și comunicarea evenimentelor prin Kafka.
- * Funcționează pe principiul unui pool de roboți: task-urile sunt distribuite
- * roboților de tip "processing" disponibili, iar după finalizare, roboții de tip
- * "finalizer" transportă produsele în depozit.</p>
+ * <p>Această clasă coordonează întreaga execuție a simulării, gestionând
+ * alocarea dinamică a roboților către task-uri și comunicarea evenimentelor
+ * prin Kafka. Funcționează pe principiul unui pool de roboți: task-urile
+ * sunt distribuite roboților de tip "processing" disponibili, iar după
+ * finalizare, roboții de tip "finalizer" transportă produsele în
+ * depozit.</p>
  *
  * <p>Fluxul general de execuție este:</p>
  * <ol>
  *   <li>Se selectează un robot de procesare disponibil din pool.</li>
  *   <li>Robotul execută task-ul în mod asincron (pe un thread separat).</li>
  *   <li>După finalizarea task-ului, un robot de transport preia produsul.</li>
- *   <li>Produsul este mutat în depozit, iar ambii roboți revin la starea "Inactiv".</li>
+ *   <li>Produsul este mutat în depozit, iar ambii roboți revin la starea
+ *   "Inactiv".</li>
  * </ol>
  *
  * <p>Simularea poate fi oprită oricând prin apelul metodei {@link #stop()},
@@ -26,7 +28,8 @@ import java.util.List;
  * <p><b>Exemplu de utilizare:</b></p>
  * <pre>{@code
  * Factory factory = new Factory(...);
- * List<Task> tasks = Arrays.asList(new Task("Sudura", 2000), new Task("Vopsire", 3000));
+ * List<Task> tasks = Arrays.asList(new Task("Sudura", 2000),
+ *     new Task("Vopsire", 3000));
  * SimulationEngine engine = new SimulationEngine(factory, tasks);
  * engine.start();
  * // ...mai târziu, pentru oprire:
@@ -61,7 +64,8 @@ public class SimulationEngine {
      * <p>Declarat {@code volatile} pentru a garanta vizibilitatea modificărilor
      * între thread-uri: atunci când metoda {@link #stop()} este apelată din
      * alt thread, toate thread-urile active vor vedea imediat noua valoare
-     * {@code false}, fără a utiliza o valoare din cache-ul local al procesorului.</p>
+     * {@code false}, fără a utiliza o valoare din cache-ul local al
+     * procesorului.</p>
      *
      * <p>Cât timp valoarea este {@code true}, simularea continuă să aloce
      * task-uri și să aștepte roboți disponibili.</p>
@@ -81,33 +85,37 @@ public class SimulationEngine {
     private KafkaProducerService kafkaService;
 
     /**
-     * Construiește un nou motor de simulare cu fabrica și lista de task-uri specificate.
+     * Construiește un nou motor de simulare cu fabrica și lista de task-uri
+     * specificate.
      *
      * <p>La inițializare, se obține instanța singleton a serviciului Kafka,
      * pregătind infrastructura de mesagerie înainte de pornirea simulării.</p>
      *
-     * @param factory fabrica robotizată ce conține toți roboții disponibili;
-     *                nu trebuie să fie {@code null}
-     * @param tasks   lista ordonată de task-uri ce vor fi executate în simulare;
-     *                nu trebuie să fie {@code null} sau goală
+     * @param inputFactory fabrica robotizată ce conține toți roboții
+     *                     disponibili; nu trebuie să fie {@code null}
+     * @param inputTasks   lista ordonată de task-uri ce vor fi executate
+     *                     în simulare; nu trebuie să fie {@code null}
+     *                     sau goală
      */
-    public SimulationEngine(Factory factory, List<Task> tasks) {
-        this.factory = factory;
-        this.tasks = tasks;
+    public SimulationEngine(final Factory inputFactory,
+            final List<Task> inputTasks) {
+        this.factory = inputFactory;
+        this.tasks = inputTasks;
         this.kafkaService = KafkaProducerService.getInstance();
     }
 
     /**
      * Oprește simularea în mod controlat (graceful shutdown).
      *
-     * <p>Setează flag-ul intern {@code running} la {@code false}, semnalizând
-     * tuturor thread-urilor active că trebuie să se oprească cât mai curând posibil.
-     * Această metodă nu blochează — nu așteaptă finalizarea thread-urilor deja
-     * pornite, ci doar previne pornirea unora noi și alocarea de noi task-uri.</p>
+     * <p>Setează flag-ul intern {@code running} la {@code false},
+     * semnalizând tuturor thread-urilor active că trebuie să se oprească
+     * cât mai curând posibil. Această metodă nu blochează — nu așteaptă
+     * finalizarea thread-urilor deja pornite, ci doar previne pornirea
+     * unora noi și alocarea de noi task-uri.</p>
      *
      * <p>Thread-urile deja în execuție vor verifica flag-ul {@code running}
-     * la următoarea oportunitate (de obicei după finalizarea sleep-ului curent)
-     * și vor elibera roboții alocați înainte de a se termina.</p>
+     * la următoarea oportunitate (de obicei după finalizarea sleep-ului
+     * curent) și vor elibera roboții alocați înainte de a se termina.</p>
      *
      * <p><b>Notă:</b> Metoda este sigură pentru apel din orice thread
      * (thread-safe), datorită declarării câmpului {@code running} ca
@@ -125,14 +133,16 @@ public class SimulationEngine {
      * următorii pași:</p>
      * <ol>
      *   <li><b>Selectarea robotului de procesare:</b> Se caută în pool-ul
-     *       de roboți "processing" primul robot liber prin {@code tryAcquire()}.
-     *       Dacă niciun robot nu este disponibil, se așteaptă 100ms și se
-     *       încearcă din nou (busy-wait cu pauze).</li>
+     *       de roboți "processing" primul robot liber prin
+     *       {@code tryAcquire()}. Dacă niciun robot nu este disponibil,
+     *       se așteaptă 100ms și se încearcă din nou (busy-wait cu
+     *       pauze).</li>
      *   <li><b>Atribuirea task-ului:</b> Robotul selectat primește task-ul,
-     *       vizualele sale sunt actualizate, și se trimite un eveniment Kafka
-     *       de tip {@code TASK_STARTED}.</li>
-     *   <li><b>Execuția asincronă:</b> Se lansează un thread nou care simulează
-     *       execuția task-ului prin {@code Thread.sleep(task.getDuration())}.</li>
+     *       vizualele sale sunt actualizate, și se trimite un eveniment
+     *       Kafka de tip {@code TASK_STARTED}.</li>
+     *   <li><b>Execuția asincronă:</b> Se lansează un thread nou care
+     *       simulează execuția task-ului prin
+     *       {@code Thread.sleep(task.getDuration())}.</li>
      *   <li><b>Transport la depozit:</b> După finalizare, thread-ul caută un
      *       robot "finalizer" liber și simulează transportul produsului
      *       (1000ms), trimitând evenimentele Kafka corespunzătoare.</li>
@@ -151,14 +161,16 @@ public class SimulationEngine {
      * a flag-ului {@code running}.</p>
      *
      * <p><b>Gestionarea întreruperilor:</b> Dacă un thread este întrerupt
-     * extern (prin {@code Thread.interrupt()}), robotul alocat este eliberat
-     * și se afișează un mesaj de eroare.</p>
+     * extern (prin {@code Thread.interrupt()}), robotul alocat este
+     * eliberat și se afișează un mesaj de eroare.</p>
      *
      * <p><b>Evenimente Kafka trimise în cadrul unui task:</b></p>
      * <ul>
-     *   <li>{@code TASK_STARTED} — robotul de procesare a preluat task-ul</li>
+     *   <li>{@code TASK_STARTED} — robotul de procesare a preluat
+     *   task-ul</li>
      *   <li>{@code TASK_COMPLETED} — procesarea a fost finalizată</li>
-     *   <li>{@code PRODUCT_MOVED} — robotul de transport mută produsul</li>
+     *   <li>{@code PRODUCT_MOVED} — robotul de transport mută
+     *   produsul</li>
      *   <li>{@code TASK_FINALIZED} — produsul a ajuns în depozit</li>
      * </ul>
      */
@@ -172,14 +184,18 @@ public class SimulationEngine {
         List<Robot> transportPool = allRobots.stream()
                 .filter(r -> r.getType().equals("finalizer")).toList();
 
-        System.out.println("--- START SIMULARE: " + tasks.size() + " task-uri ---");
+        System.out.println("--- START SIMULARE: "
+            + tasks.size() + " task-uri ---");
 
         for (Task task : tasks) {
-            if (!running) break;
+            if (!running) {
+                break;
+            }
 
             Robot selectedWorker = null;
 
-            // Busy-wait cu pauze de 100ms până se găsește un robot de procesare liber
+            // Busy-wait cu pauze de 100ms până se găsește un robot
+            // de procesare liber
             while (selectedWorker == null && running) {
                 for (Robot r : processingPool) {
                     if (r.tryAcquire()) {
@@ -188,32 +204,39 @@ public class SimulationEngine {
                     }
                 }
                 if (selectedWorker == null) {
-                    try { Thread.sleep(100); } catch (Exception e) { return; }
+                    try {
+                        Thread.sleep(WAIT_INTERVAL_MS);
+                    } catch (Exception e) {
+                        return;
+                    }
                 }
             }
 
-            if (selectedWorker == null) continue;
+            if (selectedWorker == null) {
+                continue;
+            }
 
             final Robot worker = selectedWorker;
             worker.setCurrentTaskName(task.getName());
             worker.updateVisuals();
 
-            kafkaService.sendEvent(new RobotEvent(
-                worker.getId(), "TASK_STARTED", task.getName(), worker.getType()
-            ));
+            kafkaService.sendEvent(new RobotEvent(worker.getId(),
+                "TASK_STARTED", task.getName(), worker.getType()));
 
             // Execuție asincronă: fiecare task rulează pe propriul thread
             new Thread(() -> {
                 try {
-                    if (!running) { worker.release(); return; }
+                    if (!running) {
+                        worker.release();
+                        return;
+                    }
 
                     // Simularea duratei de procesare a task-ului
                     Thread.sleep(task.getDuration());
 
-                    kafkaService.sendEvent(new RobotEvent(
-                        worker.getId(), "TASK_COMPLETED", task.getName(),
-                        "Durata: " + task.getDuration() + "ms"
-                    ));
+                    kafkaService.sendEvent(new RobotEvent(worker.getId(),
+                        "TASK_COMPLETED", task.getName(),
+                        "Durata: " + task.getDuration() + "ms"));
 
                     // Căutarea unui robot de transport disponibil
                     Robot selectedTransport = null;
@@ -224,36 +247,40 @@ public class SimulationEngine {
                                 break;
                             }
                         }
-                        if (selectedTransport == null) Thread.sleep(100);
+                        if (selectedTransport == null) {
+                            Thread.sleep(WAIT_INTERVAL_MS);
+                        }
                     }
 
                     if (selectedTransport != null) {
                         final Robot transport = selectedTransport;
 
                         kafkaService.sendEvent(new RobotEvent(
-                            transport.getId(), "PRODUCT_MOVED", task.getName(),
-                            "De la: " + worker.getId() + " in depozit"
-                        ));
+                            transport.getId(), "PRODUCT_MOVED",
+                            task.getName(),
+                            "De la: " + worker.getId() + " in depozit"));
 
                         transport.setCurrentTaskName("De la " + worker.getId());
                         transport.updateVisuals();
 
-                        // Simularea timpului de transport al produsului (1 secundă)
-                        Thread.sleep(1000);
+                        // Simularea timpului de transport al produsului
+                        Thread.sleep(TRANSPORT_DURATION_MS);
 
                         transport.release();
                         transport.setCurrentTaskName("Inactiv");
                         transport.updateVisuals();
 
                         kafkaService.sendEvent(new RobotEvent(
-                            transport.getId(), "TASK_FINALIZED", task.getName(),
-                            "Task complet depozitat"
-                        ));
+                            transport.getId(), "TASK_FINALIZED",
+                            task.getName(),
+                            "Task complet depozitat"));
 
                     } else {
-                        // Simularea a fost oprită înainte ca un transport să fie găsit
-                        System.out.println("[STOP] " + worker.getId() +
-                            " a abandonat task-ul " + task.getName() + " din cauza opririi.");
+                        // Simularea a fost oprită înainte ca un transport
+                        // să fie găsit
+                        System.out.println("[STOP] " + worker.getId()
+                            + " a abandonat task-ul " + task.getName()
+                            + " din cauza opririi.");
                     }
 
                     worker.release();
@@ -261,11 +288,24 @@ public class SimulationEngine {
                     worker.updateVisuals();
 
                 } catch (InterruptedException e) {
-                    // Thread-ul a fost întrerupt extern; eliberăm robotul pentru a evita deadlock-uri
+                    // Thread-ul a fost întrerupt extern; eliberăm robotul
+                    // pentru a evita deadlock-uri
                     worker.release();
-                    System.err.println("Thread intrerupt pentru " + worker.getId());
+                    System.err.println("Thread intrerupt pentru "
+                        + worker.getId());
                 }
             }).start();
         }
     }
+
+    /**
+     * Intervalul de așteptare în milisecunde între încercările
+     * de a găsi un robot disponibil.
+     */
+    private static final int WAIT_INTERVAL_MS = 100;
+
+    /**
+     * Durata de transport a produsului în depozit în milisecunde.
+     */
+    private static final int TRANSPORT_DURATION_MS = 1000;
 }

@@ -4,13 +4,15 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Reprezintă fabrica automatizată care centralizează și gestionează resursele sistemului.
- * Această clasă acționează ca un container principal pentru colecția de roboți alocați
+ * Reprezintă fabrica automatizată care centralizează
+ * și gestionează resursele sistemului.
+ * Această clasă acționează ca un container principal
+ * pentru colecția de roboți alocați
  * proceselor de producție din fabrică.
  *  @author Echipa Robotic Factory
  */
 public class Factory {
-    
+
     /** Lista care stochează toți roboții înregistrați în cadrul fabricii. */
     private List<Robot> robots = new ArrayList<>();
 
@@ -19,7 +21,7 @@ public class Factory {
      *
      * @param robot obiectul de tip {@link Robot} care va fi adăugat în listă
      */
-    public void addRobot(Robot robot) {
+    public void addRobot(final Robot robot) {
         robots.add(robot);
     }
 
