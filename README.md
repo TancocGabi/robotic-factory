@@ -5,7 +5,7 @@ O aplicație Java de simulare a unei fabrici robotizate, cu interfață grafică
  
 ## 📋 Descriere
  
-**Robotic Factory Simulator** simulează funcționarea unei fabrici automatizate în care roboți de două tipuri — **procesare** și **transport** — colaborează pentru a executa task-uri industriale (sudură, asamblare, vopsire etc.). Activitatea roboților este monitorizată în timp real prin evenimente publicate și consumate via Apache Kafka.
+**Robotic Factory Simulator** simulează funcționarea unei fabrici automatizate în care roboți de două tipuri - **procesare** și **transport** - colaborează pentru a executa task-uri industriale (sudură, asamblare, vopsire etc.). Activitatea roboților este monitorizată în timp real prin evenimente publicate și consumate via Apache Kafka.
  
 
 
